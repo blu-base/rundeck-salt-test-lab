@@ -1,0 +1,20 @@
+#cloud-config
+
+disable_root: false
+ssh_pwauth: true
+chpasswd:
+  expire: false
+  list: |
+     root:linux
+
+%{ if image == "ubuntu2204o" }
+runcmd:
+  # WORKAROUND: cloud-init in Ubuntu 22.04 does not take care of the following
+  - echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+  # WORKAROUND: disable IPv6 until we have it in Provo
+  - echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4
+  - systemctl restart sshd
+  - systemctl start qemu-guest-agent
+
+packages: ["salt-minion", "qemu-guest-agent"]
+%{ endif }

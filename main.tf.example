@@ -1,0 +1,100 @@
+terraform {
+  required_version = "1.0.10"
+  required_providers {
+    libvirt = {
+      source = "dmacvicar/libvirt"
+      version = "0.6.3"
+    }
+  }
+}
+
+provider "libvirt" {
+  uri = "qemu:///system"
+}
+
+module "base" {
+  source = "./modules/base"
+
+  // Domain for hostnames, etc
+  //domain = "rd.lab"
+
+  // Prefix for resources
+  //name_prefix = "rd-"
+  // ssh_key_path = "~/.ssh/id_ed25519.pub"
+
+  images = [ "ubuntu2204o" ]
+
+  provider_settings = {
+    // A preconfigured network. Or default if not uncommented
+    //network_name = "rundeck-lab"
+
+		// A storage pool
+    pool = libvirt_pool.rundeck-salt.name
+  }
+}
+
+// A strorage pool on the host system. Remove if a pre-existing pool is to be
+// used.
+resource "libvirt_pool" "rundeck-salt" {
+  name = "rundeck-salt"
+  type = "dir"
+  path = "/var/lib/libvirt/rundeck-salt"
+}
+
+module "saltmaster" {
+  source = "./modules/saltmaster"
+  base_configuration = module.base.configuration
+
+  name = "saltmaster"
+  image = "ubuntu2204o"
+  // provider_settings = {
+  //   mac = "01:23:45:67:89:AB"
+  // }
+
+  // see modules/saltmaster/variables.tf for possible values
+}
+
+module "minion" {
+  source = "./modules/minion"
+
+  name = "minion1"
+
+  image = "ubuntu2204o"
+
+  base_configuration = module.base.configuration
+  server_configuration = module.saltmaster.configuration
+
+  // provider_settings = {
+  //   mac = "01:23:45:67:89:AB"
+  // }
+}
+
+module "postgres" {
+  source = "./modules/postgres"
+
+  name = "postgres"
+
+  image = "ubuntu2204o"
+
+  base_configuration = module.base.configuration
+  server_configuration = module.saltmaster.configuration
+
+  // provider_settings = {
+  //   mac = "01:23:45:67:89:AB"
+  // }
+}
+
+module "rundeck" {
+  source = "./modules/rundeck"
+
+  name = "rundeck"
+
+  image = "ubuntu2204o"
+
+  base_configuration = module.base.configuration
+  server_configuration = module.saltmaster.configuration
+
+  // provider_settings = {
+  //   mac = "01:23:45:67:89:AB"
+  // }
+}
